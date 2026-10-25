@@ -1,0 +1,15 @@
+#!/bin/sh
+# Copy the wall (via the source.md symlink) and the images it embeds into wall/.
+[ -e source.md ] || exit 0
+src=$(readlink -f source.md)
+vault=$(dirname "$src")
+while [ "$vault" != / ] && [ ! -d "$vault/.obsidian" ]; do vault=$(dirname "$vault"); done
+
+rm -rf wall && mkdir -p wall/files
+cp "$src" wall/wall.md
+sed -n 's/^[0-9a-f]*: \[\[\([^]|]*\).*/\1/p' wall/wall.md | while IFS= read -r link; do
+  f=$(find "$vault" -name "${link##*/}" -not -path '*/.obsidian/*' -print -quit)
+  [ -n "$f" ] && cp "$f" "wall/files/${link##*/}"
+done
+chmod -R a=rX,u+w wall
+git add -A wall

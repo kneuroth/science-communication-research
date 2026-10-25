@@ -1,0 +1,39 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Science Communication Research Wall</title>
+<link rel="stylesheet" href="https://esm.sh/@excalidraw/excalidraw@0.18.0/dist/prod/index.css">
+<style>html, body, #app { margin: 0; height: 100%; }</style>
+<div id="app"></div>
+<script type="module">
+import React from "https://esm.sh/react@18.3.1";
+import { createRoot } from "https://esm.sh/react-dom@18.3.1/client";
+import { Excalidraw } from "https://esm.sh/@excalidraw/excalidraw@0.18.0?deps=react@18.3.1,react-dom@18.3.1";
+import LZString from "https://esm.sh/lz-string@1.5.0";
+
+// source.md is the live symlink when served locally; wall/ is the committed copy.
+const text = (p) => fetch(p).then((r) => (r.ok ? r.text() : Promise.reject(r)));
+const md = await text("source.md").catch(() => text("wall/wall.md"));
+
+const [, kind, body] = md.match(/```(compressed-json|json)\n([\s\S]*?)\n```/);
+const scene = JSON.parse(kind === "json" ? body : LZString.decompressFromBase64(body.replace(/\s/g, "")));
+
+const files = {};
+for (const [, id, link] of md.matchAll(/^([0-9a-f]+): \[\[([^\]|]+)/gm)) {
+  const blob = await fetch("wall/files/" + encodeURIComponent(link.split("/").pop())).then((r) => r.blob());
+  const dataURL = await new Promise((done) => {
+    const reader = new FileReader();
+    reader.onload = () => done(reader.result);
+    reader.readAsDataURL(blob);
+  });
+  files[id] = { id, mimeType: blob.type, dataURL };
+}
+
+createRoot(document.getElementById("app")).render(
+  React.createElement(Excalidraw, {
+    initialData: { elements: scene.elements, appState: scene.appState, files, scrollToContent: true },
+    viewModeEnabled: true,
+    zenModeEnabled: true,
+  })
+);
+</script>
